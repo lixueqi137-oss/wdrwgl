@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>每日任务管理器</title>
+    <style>
+        /* 基础样式 (你可大幅美化) */
+        body { font-family: sans-serif; margin: 20px; }
+        .day-container { border: 1px solid #ccc; margin-bottom: 15px; padding: 15px; border-radius: 5px; }
+        .date-header { font-weight: bold; margin-bottom: 10px; cursor: pointer; }
+        .task-item { display: flex; align-items: center; margin-bottom: 5px; }
+        .task-item input[type="checkbox"] { margin-right: 8px; }
+        .task-item input:checked + input { color: #999; }
+        button { margin-right: 5px; margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <h1>每日任务管理器</h1>
+    <button id="addTaskBtn">+ 添加新任务</button>
+    <button id="copyYesterdayBtn">📋 复制昨天的未完成任务</button>
+    <hr>
+    <!-- 当天的任务容器 -->
+    <div id="todayContainer"></div>
+
+    <script>
+        // 工具函数：获取“YYYY-MM-DD”格式的日期字符串
+        function getDateStr(dateObj) {
+            return dateObj.toISOString().split('T')[0];
+        }
+
+        // 1. 初始化：获取今天和昨天的日期键
+        const todayStr = getDateStr(new Date());
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        const yesterdayStr = getDateStr(yesterday);
+
+        // 2. 加载或初始化今天的任务列表
+        let tasks = JSON.parse(localStorage.getItem(todayStr)) || [];
+        renderTasks();
+
+        // 3. 渲染任务列表的函数
+        function renderTasks() {
+            const container = document.getElementById('todayContainer');
+            container.innerHTML = `<div class="date-header">📅 今天 (${todayStr})</div>`;
+            tasks.forEach((task, index) => {
+                const taskElem = document.createElement('div');
+                taskElem.className = 'task-item';
+                taskElem.innerHTML = `
+                    <input type="checkbox" ${task.completed ? 'checked' : ''} data-index="${index}">
+                    <input type="text" value="${task.text}" data-index="${index}" style="border:none; flex-grow:1; margin-left:5px;">
+                    <button class="delete-btn" data-index="${index}">删除</button>
+                `;
+                const textSpan = taskElem.querySelector('input[type="text"]');
+                const checkbox = taskElem.querySelector('input[type="checkbox"]');
+                if(task.completed) textSpan.classList.add('completed');
+                container.appendChild(taskElem);
+            });
+            // 保存到本地存储
+            localStorage.setItem(todayStr, JSON.stringify(tasks));
+        }
+
+        // 4. 事件委托：处理复选框变化、文本修改和删除
+        document.body.addEventListener('change', function(e) {
+            if(e.target.type === 'checkbox') {
+                const index = e.target.dataset.index;
+                tasks[index].completed = e.target.checked;
+                // 触发重新渲染以更新文本样式
+                renderTasks();
+            }
+        });
+
+        document.body.addEventListener('click', function(e) {
+            if(e.target.classList.contains('delete-btn')) {
+                const index = e.target.dataset.index;
+                tasks.splice(index, 1);
+                renderTasks();
+            }
+        });
+
+        // 5. 添加新任务按钮
+        document.getElementById('addTaskBtn').addEventListener('click', function() {
+            tasks.push({text: "新任务", completed: false});
+            renderTasks();
+        });
+
+        // 6. “复制昨天”按钮
+        document.getElementById('copyYesterdayBtn').addEventListener('click', function() {
+            const yesterdayTasks = JSON.parse(localStorage.getItem(yesterdayStr)) || [];
+            const unfinishedTasks = yesterdayTasks.filter(task => !task.completed);
+            if(unfinishedTasks.length === 0) {
+                alert('昨天没有未完成的任务。');
+                return;
+            }
+            // 将未完成的任务复制到今天（可避免完全重复）
+            unfinishedTasks.forEach(task => {
+                // 可选：在任务文本后添加标记
+                tasks.push({text: task.text + " (来自昨天)", completed: false});
+            });
+            renderTasks();
+            alert(`已添加 ${unfinishedTasks.length} 项来自昨天的未完成任务。`);
+        });
+    </script>
+</body>
+</html>
