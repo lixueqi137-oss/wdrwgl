@@ -657,6 +657,15 @@
                 }
             }
         });
+        /* 强制显示和定位折叠按钮 */
+#toggleSidebarBtn {
+  display: block !important;
+  visibility: visible !important;
+  right: -15px !important;
+  top: 15px !important;
+  z-index: 9999 !important;
+  border: 2px solid red !important; /* 临时添加红色边框以便识别 */
+}
         
         // 5. 切换紧凑模式
         document.getElementById('toggleCompactBtn').addEventListener('click', function() {
