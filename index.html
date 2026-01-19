@@ -3,103 +3,434 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>每日任务管理器</title>
+    <title>每日任务管理器 (增强版)</title>
     <style>
-        /* 基础样式 (你可大幅美化) */
-        body { font-family: sans-serif; margin: 20px; }
-        .day-container { border: 1px solid #ccc; margin-bottom: 15px; padding: 15px; border-radius: 5px; }
-        .date-header { font-weight: bold; margin-bottom: 10px; cursor: pointer; }
-        .task-item { display: flex; align-items: center; margin-bottom: 5px; }
-        .task-item input[type="checkbox"] { margin-right: 8px; }
-        .task-item input:checked + input { color: #999; }
-        button { margin-right: 5px; margin-top: 10px; }
+        * { box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f5f7fa;
+            display: flex;
+            min-height: 100vh;
+        }
+        /* 日历侧边栏 */
+        #calendarSidebar {
+            width: 200px;
+            margin-right: 25px;
+            flex-shrink: 0;
+        }
+        #calendarSidebar h3 { color: #333; margin-top: 0; }
+        .date-item {
+            padding: 10px 12px;
+            margin-bottom: 8px;
+            background: white;
+            border-radius: 8px;
+            cursor: pointer;
+            border-left: 4px solid #4CAF50;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            transition: all 0.2s;
+        }
+        .date-item:hover { background: #edf7ed; transform: translateX(2px); }
+        .date-item.active {
+            background: #4CAF50;
+            color: white;
+            font-weight: bold;
+        }
+        /* 主任务区域 */
+        #mainArea {
+            flex-grow: 1;
+            max-width: 700px;
+        }
+        .task-section {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 25px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+        .section-title {
+            font-size: 1.2em;
+            color: #2c3e50;
+            margin-top: 0;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #f0f0f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        /* 任务项样式 */
+        .task-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #f5f5f5;
+        }
+        .task-item:last-child { border-bottom: none; }
+        .task-checkbox {
+            width: 20px;
+            height: 20px;
+            margin-right: 12px;
+            cursor: pointer;
+            accent-color: #4CAF50; /* 复选框颜色 */
+        }
+        .task-text {
+            flex-grow: 1;
+            border: none;
+            font-size: 1em;
+            padding: 5px;
+            background: transparent;
+            color: #333;
+        }
+        .task-text:focus {
+            outline: none;
+            background: #f9f9f9;
+            border-radius: 4px;
+        }
+        /* 已完成任务：只变淡，不划掉 */
+        .task-checkbox:checked + .task-text {
+            color: #95a5a6; /* 文本变淡灰色 */
+            /* 没有 text-decoration: line-through; */
+        }
+        .delete-btn {
+            opacity: 0;
+            background: #ff6b6b;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 5px 10px;
+            cursor: pointer;
+            font-size: 0.8em;
+            transition: opacity 0.2s;
+        }
+        .task-item:hover .delete-btn { opacity: 1; }
+        /* 按钮样式 */
+        .action-btn {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 18px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.95em;
+            margin-right: 10px;
+            transition: background 0.2s;
+            display: inline-flex;
+            align-items: center;
+        }
+        .action-btn:hover { background: #45a049; }
+        .action-btn.secondary {
+            background: #6c757d;
+        }
+        .action-btn.secondary:hover {
+            background: #5a6268;
+        }
+        #controls { margin-bottom: 20px; }
     </style>
 </head>
 <body>
-    <h1>每日任务管理器</h1>
-    <button id="addTaskBtn">+ 添加新任务</button>
-    <button id="copyYesterdayBtn">📋 复制昨天的未完成任务</button>
-    <hr>
-    <!-- 当天的任务容器 -->
-    <div id="todayContainer"></div>
+    <!-- 日历侧边栏 -->
+    <div id="calendarSidebar">
+        <h3>🗓️ 任务日历</h3>
+        <div id="calendarList">
+            <!-- 日期项将通过JS动态生成 -->
+        </div>
+    </div>
+
+    <!-- 主任务区域 -->
+    <div id="mainArea">
+        <div id="controls">
+            <button class="action-btn" id="addDynamicTaskBtn">+ 添加今日任务</button>
+            <button class="action-btn secondary" id="copyYesterdayBtn">📋 复制昨天未完成</button>
+            <button class="action-btn secondary" id="manageFixedTasksBtn">⚙️ 管理固定任务</button>
+        </div>
+
+        <!-- 固定任务区域 -->
+        <div class="task-section">
+            <h3 class="section-title">
+                🔄 每日固定任务
+                <small style="font-size:0.8em; color:#7f8c8d;">（每天自动出现）</small>
+            </h3>
+            <div id="fixedTasksContainer"></div>
+        </div>
+
+        <!-- 今日动态任务区域 -->
+        <div class="task-section">
+            <h3 class="section-title" id="todayDateTitle">📝 今日动态任务</h3>
+            <div id="dynamicTasksContainer"></div>
+        </div>
+    </div>
 
     <script>
-        // 工具函数：获取“YYYY-MM-DD”格式的日期字符串
+        // ================ 核心工具函数 ================
         function getDateStr(dateObj) {
             return dateObj.toISOString().split('T')[0];
         }
 
-        // 1. 初始化：获取今天和昨天的日期键
-        const todayStr = getDateStr(new Date());
-        const yesterday = new Date();
-        yesterday.setDate(yesterday.getDate() - 1);
-        const yesterdayStr = getDateStr(yesterday);
+        // ================ 状态与日期管理 ================
+        const TODAY = new Date();
+        const TODAY_STR = getDateStr(TODAY);
+        let currentViewingDate = TODAY_STR; // 当前正在查看的日期
 
-        // 2. 加载或初始化今天的任务列表
-        let tasks = JSON.parse(localStorage.getItem(todayStr)) || [];
-        renderTasks();
+        // ================ 数据模型 ================
+        // 从本地存储加载数据，如果不存在则初始化
+        let fixedTasks = JSON.parse(localStorage.getItem('fixedTasks')) || [
+            { id: 1, text: "阅读30分钟", completed: false },
+            { id: 2, text: "运动锻炼", completed: false }
+        ];
+        // dailyTasks 结构： { "2023-10-27": { dynamicTasks: [...], fixedTaskStatus: {"1": true, "2": false} } }
+        let allDailyTasks = JSON.parse(localStorage.getItem('allDailyTasks')) || {};
 
-        // 3. 渲染任务列表的函数
-        function renderTasks() {
-            const container = document.getElementById('todayContainer');
-            container.innerHTML = `<div class="date-header">📅 今天 (${todayStr})</div>`;
-            tasks.forEach((task, index) => {
-                const taskElem = document.createElement('div');
-                taskElem.className = 'task-item';
-                taskElem.innerHTML = `
-                    <input type="checkbox" ${task.completed ? 'checked' : ''} data-index="${index}">
-                    <input type="text" value="${task.text}" data-index="${index}" style="border:none; flex-grow:1; margin-left:5px;">
-                    <button class="delete-btn" data-index="${index}">删除</button>
-                `;
-                const textSpan = taskElem.querySelector('input[type="text"]');
-                const checkbox = taskElem.querySelector('input[type="checkbox"]');
-                if(task.completed) textSpan.classList.add('completed');
-                container.appendChild(taskElem);
-            });
-            // 保存到本地存储
-            localStorage.setItem(todayStr, JSON.stringify(tasks));
+        // ================ 初始化：确保今天的数据存在 ================
+        function ensureDateData(dateStr) {
+            if (!allDailyTasks[dateStr]) {
+                allDailyTasks[dateStr] = {
+                    dynamicTasks: [],
+                    fixedTaskStatus: {}
+                };
+                // 初始化固定任务状态为未完成
+                fixedTasks.forEach(ft => {
+                    allDailyTasks[dateStr].fixedTaskStatus[ft.id] = false;
+                });
+                saveAllDailyTasks();
+            }
+        }
+        ensureDateData(TODAY_STR);
+
+        // ================ 数据持久化函数 ================
+        function saveFixedTasks() {
+            localStorage.setItem('fixedTasks', JSON.stringify(fixedTasks));
+        }
+        function saveAllDailyTasks() {
+            localStorage.setItem('allDailyTasks', JSON.stringify(allDailyTasks));
         }
 
-        // 4. 事件委托：处理复选框变化、文本修改和删除
-        document.body.addEventListener('change', function(e) {
-            if(e.target.type === 'checkbox') {
-                const index = e.target.dataset.index;
-                tasks[index].completed = e.target.checked;
-                // 触发重新渲染以更新文本样式
-                renderTasks();
+        // ================ 渲染函数 ================
+        // 1. 渲染日历侧边栏
+        function renderCalendar() {
+            const container = document.getElementById('calendarList');
+            container.innerHTML = '';
+            // 生成最近7天（可调整）的日期
+            for (let i = 6; i >= 0; i--) {
+                const date = new Date();
+                date.setDate(date.getDate() - i);
+                const dateStr = getDateStr(date);
+                const dateItem = document.createElement('div');
+                dateItem.className = `date-item ${dateStr === currentViewingDate ? 'active' : ''}`;
+                const dayNames = ['周日','周一','周二','周三','周四','周五','周六'];
+                const dayName = dayNames[date.getDay()];
+                const displayDate = date.getDate();
+                const isToday = dateStr === TODAY_STR;
+                dateItem.innerHTML = `${isToday ? '<strong>今天</strong>' : `${date.getMonth()+1}/${displayDate}`} ${dayName}`;
+                dateItem.addEventListener('click', () => switchViewingDate(dateStr));
+                container.appendChild(dateItem);
             }
-        });
+        }
 
-        document.body.addEventListener('click', function(e) {
-            if(e.target.classList.contains('delete-btn')) {
-                const index = e.target.dataset.index;
-                tasks.splice(index, 1);
-                renderTasks();
+        // 2. 切换查看的日期
+        function switchViewingDate(dateStr) {
+            currentViewingDate = dateStr;
+            ensureDateData(dateStr); // 切换到某天时确保数据存在
+            renderCalendar();
+            renderAllTasksForDate(dateStr);
+            // 更新主区域标题
+            const title = document.getElementById('todayDateTitle');
+            const dayDiff = Math.round((new Date(dateStr) - TODAY) / (1000*60*60*24));
+            let dayText = '';
+            if (dayDiff === 0) dayText = '今天';
+            else if (dayDiff === -1) dayText = '昨天';
+            else if (dayDiff === 1) dayText = '明天';
+            else dayText = dateStr;
+            title.textContent = `📝 ${dayText}的动态任务`;
+        }
+
+        // 3. 为指定日期渲染所有任务（固定+动态）
+        function renderAllTasksForDate(dateStr) {
+            const dateData = allDailyTasks[dateStr];
+            if (!dateData) return;
+
+            // 渲染固定任务
+            const fixedContainer = document.getElementById('fixedTasksContainer');
+            fixedContainer.innerHTML = '';
+            fixedTasks.forEach(fixedTask => {
+                const isCompleted = dateData.fixedTaskStatus[fixedTask.id] || false;
+                const taskElem = createTaskElement(
+                    fixedTask.text,
+                    isCompleted,
+                    'fixed',
+                    fixedTask.id,
+                    dateStr
+                );
+                fixedContainer.appendChild(taskElem);
+            });
+
+            // 渲染动态任务
+            const dynamicContainer = document.getElementById('dynamicTasksContainer');
+            dynamicContainer.innerHTML = '';
+            dateData.dynamicTasks.forEach((task, index) => {
+                const taskElem = createTaskElement(
+                    task.text,
+                    task.completed,
+                    'dynamic',
+                    index,
+                    dateStr
+                );
+                dynamicContainer.appendChild(taskElem);
+            });
+        }
+
+        // 4. 创建单个任务元素的通用函数 (修复了事件绑定的核心)
+        function createTaskElement(text, completed, type, id, dateStr) {
+            const taskDiv = document.createElement('div');
+            taskDiv.className = 'task-item';
+
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.className = 'task-checkbox';
+            checkbox.checked = completed;
+
+            // 关键修复：使用闭包捕获当前参数，确保事件触发时能正确更新数据
+            checkbox.addEventListener('change', () => {
+                updateTaskCompletion(type, id, dateStr, checkbox.checked);
+            });
+
+            const textInput = document.createElement('input');
+            textInput.type = 'text';
+            textInput.className = 'task-text';
+            textInput.value = text;
+            textInput.addEventListener('change', () => {
+                updateTaskText(type, id, dateStr, textInput.value);
+            });
+
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'delete-btn';
+            deleteBtn.textContent = '删除';
+            deleteBtn.addEventListener('click', () => {
+                deleteTask(type, id, dateStr);
+            });
+
+            taskDiv.appendChild(checkbox);
+            taskDiv.appendChild(textInput);
+            if (type === 'dynamic') {
+                taskDiv.appendChild(deleteBtn); // 固定任务不能单独删除
             }
+
+            return taskDiv;
+        }
+
+        // ================ 数据更新函数 ================
+        // 1. 更新任务完成状态
+        function updateTaskCompletion(type, id, dateStr, completed) {
+            const dateData = allDailyTasks[dateStr];
+            if (type === 'fixed') {
+                dateData.fixedTaskStatus[id] = completed;
+            } else if (type === 'dynamic') {
+                dateData.dynamicTasks[id].completed = completed;
+            }
+            saveAllDailyTasks();
+            // 视觉更新立即生效，无需重绘全部
+        }
+
+        // 2. 更新任务文本
+        function updateTaskText(type, id, dateStr, newText) {
+            if (type === 'fixed') {
+                fixedTasks.find(t => t.id === id).text = newText;
+                saveFixedTasks();
+                // 固定任务文本变更，需要重绘所有日期的该任务
+                renderAllTasksForDate(currentViewingDate);
+            } else if (type === 'dynamic') {
+                allDailyTasks[dateStr].dynamicTasks[id].text = newText;
+                saveAllDailyTasks();
+            }
+        }
+
+        // 3. 删除任务（仅动态任务）
+        function deleteTask(type, id, dateStr) {
+            if (type === 'dynamic') {
+                allDailyTasks[dateStr].dynamicTasks.splice(id, 1);
+                saveAllDailyTasks();
+                renderAllTasksForDate(dateStr); // 重新渲染
+            }
+        }
+
+        // ================ 按钮事件绑定 ================
+        document.getElementById('addDynamicTaskBtn').addEventListener('click', () => {
+            const dateData = allDailyTasks[currentViewingDate];
+            dateData.dynamicTasks.push({
+                text: "新任务",
+                completed: false
+            });
+            saveAllDailyTasks();
+            renderAllTasksForDate(currentViewingDate);
         });
 
-        // 5. 添加新任务按钮
-        document.getElementById('addTaskBtn').addEventListener('click', function() {
-            tasks.push({text: "新任务", completed: false});
-            renderTasks();
-        });
+        document.getElementById('copyYesterdayBtn').addEventListener('click', () => {
+            const yesterday = new Date(TODAY);
+            yesterday.setDate(yesterday.getDate() - 1);
+            const yesterdayStr = getDateStr(yesterday);
+            const yesterdayData = allDailyTasks[yesterdayStr];
 
-        // 6. “复制昨天”按钮
-        document.getElementById('copyYesterdayBtn').addEventListener('click', function() {
-            const yesterdayTasks = JSON.parse(localStorage.getItem(yesterdayStr)) || [];
-            const unfinishedTasks = yesterdayTasks.filter(task => !task.completed);
-            if(unfinishedTasks.length === 0) {
-                alert('昨天没有未完成的任务。');
+            if (!yesterdayData) {
+                alert('昨天没有数据可复制。');
                 return;
             }
-            // 将未完成的任务复制到今天（可避免完全重复）
-            unfinishedTasks.forEach(task => {
-                // 可选：在任务文本后添加标记
-                tasks.push({text: task.text + " (来自昨天)", completed: false});
+
+            const todayData = allDailyTasks[currentViewingDate];
+            const unfinishedDynamic = yesterdayData.dynamicTasks.filter(t => !t.completed);
+            unfinishedDynamic.forEach(task => {
+                todayData.dynamicTasks.push({
+                    text: task.text + " (来自昨天)",
+                    completed: false
+                });
             });
-            renderTasks();
-            alert(`已添加 ${unfinishedTasks.length} 项来自昨天的未完成任务。`);
+
+            // 复制固定任务的未完成状态（可选）
+            Object.keys(yesterdayData.fixedTaskStatus).forEach(ftId => {
+                if (!yesterdayData.fixedTaskStatus[ftId]) {
+                    todayData.fixedTaskStatus[ftId] = false; // 确保昨天未完成的固定任务今天也是未完成
+                }
+            });
+
+            saveAllDailyTasks();
+            renderAllTasksForDate(currentViewingDate);
+            alert(`已复制 ${unfinishedDynamic.length} 项未完成的动态任务。`);
         });
+
+        // 管理固定任务（简化版：跳转到新页面或弹窗）
+        document.getElementById('manageFixedTasksBtn').addEventListener('click', () => {
+            const input = prompt(
+                '管理固定任务（每行一个任务）：\n当前任务：\n' +
+                fixedTasks.map(ft => ft.text).join('\n') +
+                '\n\n请输入新的任务列表，每行一个：',
+                fixedTasks.map(ft => ft.text).join('\n')
+            );
+            if (input !== null) {
+                const newTasks = input.split('\n').filter(t => t.trim() !== '');
+                // 生成新的固定任务（保留原有ID顺序）
+                fixedTasks = newTasks.map((text, index) => ({
+                    id: index + 1,
+                    text: text.trim(),
+                    completed: false
+                }));
+                saveFixedTasks();
+                // 需要更新所有日期的 fixedTaskStatus
+                Object.keys(allDailyTasks).forEach(dateStr => {
+                    const newStatus = {};
+                    fixedTasks.forEach(ft => {
+                        // 如果该日期已有此任务的状态，则保留；否则初始化为false
+                        newStatus[ft.id] = allDailyTasks[dateStr].fixedTaskStatus[ft.id] || false;
+                    });
+                    allDailyTasks[dateStr].fixedTaskStatus = newStatus;
+                });
+                saveAllDailyTasks();
+                renderAllTasksForDate(currentViewingDate);
+                alert('固定任务已更新！');
+            }
+        });
+
+        // ================ 初始化渲染 ================
+        renderCalendar();
+        renderAllTasksForDate(TODAY_STR);
     </script>
 </body>
 </html>
