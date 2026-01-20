@@ -3,9 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>角落任务</title>
+    <title>角落任务管理器</title>
     <style>
-        /* 全局极简样式 */
         * {
             box-sizing: border-box;
             margin: 0;
@@ -20,7 +19,7 @@
             width: 100%;
             min-height: 100vh;
             padding: 8px;
-            font-size: 0.85em; /* 整体缩小 */
+            font-size: 0.85em;
         }
         
         /* 主容器 */
@@ -33,11 +32,12 @@
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
             overflow: hidden;
             min-height: 95vh;
+            position: relative; /* 为按钮定位提供参考 */
         }
         
-        /* 可折叠侧边栏 */
-        #calendarSidebar {
-            width: 180px;
+        /* 侧边栏 - 修复可见性问题 */
+        #sidebar {
+            width: 200px;
             background: #f1f5f9;
             border-right: 1px solid #e2e8f0;
             transition: all 0.3s ease;
@@ -45,21 +45,19 @@
             flex-shrink: 0;
         }
         
-        /* 折叠状态 */
-        #calendarSidebar.collapsed {
+        #sidebar.collapsed {
             width: 0;
-            overflow: hidden;
             border-right: none;
         }
         
-        /* 折叠按钮 */
+        /* 折叠按钮 - 修复可见性 */
         .toggle-sidebar {
             position: absolute;
-            right: -15px;
+            right: -35px; /* 调整位置，确保完全可见 */
             top: 15px;
             width: 30px;
             height: 30px;
-            background: #64748b;
+            background: #3b82f6; /* 改为更显眼的蓝色 */
             color: white;
             border: none;
             border-radius: 50%;
@@ -68,37 +66,65 @@
             align-items: center;
             justify-content: center;
             font-size: 0.9em;
-            z-index: 10;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-            transition: all 0.2s;
+            z-index: 1000; /* 提高层级确保在最前面 */
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
+            opacity: 1 !important; /* 强制显示 */
+            visibility: visible !important; /* 强制显示 */
+        }
+        
+        /* 侧边栏折叠时按钮位置调整 */
+        #sidebar.collapsed .toggle-sidebar {
+            right: -35px;
+            background: #64748b;
+            transform: none; /* 移除可能隐藏的变换 */
         }
         
         .toggle-sidebar:hover {
-            background: #475569;
-            transform: scale(1.05);
+            background: #2563eb;
+            transform: scale(1.1);
         }
         
-        /* 日历内容 */
-        .calendar-content {
+        /* 侧边栏内容 */
+        .sidebar-content {
             padding: 15px 12px;
             height: 100%;
+            overflow-y: auto;
         }
         
-        #calendarSidebar.collapsed .calendar-content {
+        #sidebar.collapsed .sidebar-content {
             display: none;
         }
         
-        .calendar-header {
-            font-size: 1em;
-            font-weight: 600;
-            color: #475569;
+        /* 侧边栏标签页 */
+        .sidebar-tabs {
+            display: flex;
+            border-bottom: 1px solid #e2e8f0;
             margin-bottom: 15px;
-            text-align: center;
         }
         
+        .sidebar-tab {
+            flex: 1;
+            padding: 8px 5px;
+            text-align: center;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            font-size: 0.9em;
+            color: #64748b;
+            transition: all 0.2s;
+        }
+        
+        .sidebar-tab.active {
+            color: #3b82f6;
+            border-bottom: 2px solid #3b82f6;
+            font-weight: 600;
+        }
+        
+        /* 日期项 */
         .date-item {
-            padding: 6px 8px;
-            margin-bottom: 5px;
+            padding: 8px 10px;
+            margin-bottom: 6px;
             background: white;
             border-radius: 6px;
             cursor: pointer;
@@ -117,14 +143,56 @@
             font-weight: 500;
         }
         
+        /* 历史完成项 */
+        .history-item {
+            padding: 10px;
+            margin-bottom: 8px;
+            background: white;
+            border-radius: 6px;
+            border-left: 3px solid #10b981;
+            font-size: 0.85em;
+        }
+        
+        .history-date {
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #475569;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .history-stats {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8em;
+            color: #64748b;
+            margin-bottom: 5px;
+        }
+        
+        .progress-bar {
+            height: 6px;
+            background: #e2e8f0;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 5px;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: #10b981;
+            border-radius: 3px;
+            transition: width 0.3s ease;
+        }
+        
         /* 主内容区 */
         #mainArea {
             flex-grow: 1;
             padding: 15px;
-            font-size: 0.85em; /* 主区域字体按0.5em比例缩小 */
+            font-size: 0.85em;
         }
         
-        /* 控制按钮区域 */
+        /* 按钮样式 */
         #controls {
             display: flex;
             flex-wrap: wrap;
@@ -152,41 +220,12 @@
             background: #2563eb;
         }
         
-        .action-btn.secondary {
-            background: #64748b;
-        }
-        
-        .action-btn.secondary:hover {
-            background: #475569;
-        }
-        
-        /* 任务区域 */
-        .task-section {
-            margin-bottom: 20px;
-        }
-        
-        .section-title {
-            font-size: 0.95em;
-            font-weight: 600;
-            color: #475569;
-            margin-bottom: 8px;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            padding-bottom: 5px;
-            border-bottom: 1px solid #f1f5f9;
-        }
-        
         /* 任务项 */
         .task-item {
             display: flex;
             align-items: center;
             padding: 6px 0;
             border-bottom: 1px solid #f8fafc;
-        }
-        
-        .task-item:last-child {
-            border-bottom: none;
         }
         
         .task-checkbox {
@@ -207,18 +246,10 @@
             color: #334155;
         }
         
-        .task-text:focus {
-            outline: none;
-            background: #f8fafc;
-            border-radius: 3px;
-        }
-        
-        /* 已完成任务样式 - 仅变淡，不划掉 */
         .task-checkbox:checked + .task-text {
             color: #94a3b8;
         }
         
-        /* 删除按钮 */
         .delete-btn {
             opacity: 0;
             background: #ef4444;
@@ -236,25 +267,7 @@
             opacity: 1;
         }
         
-        /* 固定任务指示器 */
-        .fixed-indicator {
-            color: #8b5cf6;
-            font-size: 0.75em;
-            margin-left: 4px;
-        }
-        
-        /* 今日高亮 */
-        .today-badge {
-            display: inline-block;
-            background: #10b981;
-            color: white;
-            font-size: 0.7em;
-            padding: 1px 6px;
-            border-radius: 10px;
-            margin-left: 5px;
-        }
-        
-        /* 窗口控制按钮 */
+        /* 底部控制按钮 */
         .window-controls {
             position: fixed;
             bottom: 15px;
@@ -283,35 +296,54 @@
             transform: translateY(-2px);
             box-shadow: 0 5px 12px rgba(0, 0, 0, 0.2);
         }
+        
+        /* 确保按钮在折叠状态下也可见 */
+        #sidebar.collapsed {
+            position: relative;
+        }
+        
+        /* 调试辅助：如果需要，可以取消下面的注释 */
+        /*
+        .toggle-sidebar {
+            border: 2px solid red !important;
+        }
+        */
     </style>
 </head>
 <body>
     <div class="app-container">
-        <!-- 可折叠日历侧边栏 -->
-        <div id="calendarSidebar">
-            <button class="toggle-sidebar" id="toggleSidebarBtn">◀</button>
-            <div class="calendar-content">
-                <div class="calendar-header">📅 任务日历</div>
-                <div id="calendarList"></div>
+        <!-- 侧边栏 -->
+        <div id="sidebar">
+            <button class="toggle-sidebar" id="toggleSidebarBtn" title="折叠/展开侧边栏">◀</button>
+            <div class="sidebar-content">
+                <div class="sidebar-tabs">
+                    <button class="sidebar-tab active" id="calendarTab">📅 日历</button>
+                    <button class="sidebar-tab" id="historyTab">📊 历史</button>
+                </div>
+                
+                <div id="calendarPanel" class="tab-panel active">
+                    <div id="calendarList"></div>
+                </div>
+                
+                <div id="historyPanel" class="tab-panel">
+                    <div id="historyList"></div>
+                </div>
             </div>
         </div>
         
         <!-- 主内容区 -->
         <div id="mainArea">
-            <!-- 控制按钮 -->
             <div id="controls">
                 <button class="action-btn" id="addDynamicTaskBtn">+ 今日任务</button>
                 <button class="action-btn secondary" id="copyYesterdayBtn">📋 复制昨天</button>
                 <button class="action-btn secondary" id="manageFixedTasksBtn">⚙️ 固定任务</button>
             </div>
             
-            <!-- 固定任务区域 -->
             <div class="task-section">
                 <h3 class="section-title">🔄 每日固定任务</h3>
                 <div id="fixedTasksContainer"></div>
             </div>
             
-            <!-- 今日动态任务区域 -->
             <div class="task-section">
                 <h3 class="section-title" id="todayDateTitle">📝 今日动态任务</h3>
                 <div id="dynamicTasksContainer"></div>
@@ -321,7 +353,7 @@
     
     <!-- 窗口控制按钮 -->
     <div class="window-controls">
-        <button class="window-btn" id="toggleCompactBtn" title="切换紧凑模式">📱</button>
+        <button class="window-btn" id="toggleCompactBtn" title="紧凑模式">📱</button>
         <button class="window-btn" id="exportDataBtn" title="导出数据">📥</button>
     </div>
 
@@ -341,20 +373,18 @@
         let fixedTasks = JSON.parse(localStorage.getItem('fixedTasks')) || [
             { id: 1, text: "晨间阅读", completed: false },
             { id: 2, text: "今日计划", completed: false },
-            { id: 3, text: "运动锻炼", completed: false },
-            { id: 4, text: "工作总结", completed: false }
+            { id: 3, text: "运动锻炼", completed: false }
         ];
         
         let allDailyTasks = JSON.parse(localStorage.getItem('allDailyTasks')) || {};
         
-        // ================ 初始化数据 ================
+        // ================ 初始化 ================
         function ensureDateData(dateStr) {
             if (!allDailyTasks[dateStr]) {
                 allDailyTasks[dateStr] = {
                     dynamicTasks: [],
                     fixedTaskStatus: {}
                 };
-                // 初始化固定任务状态
                 fixedTasks.forEach(ft => {
                     allDailyTasks[dateStr].fixedTaskStatus[ft.id] = false;
                 });
@@ -373,13 +403,11 @@
         }
         
         // ================ 渲染函数 ================
-        // 1. 渲染日历侧边栏
         function renderCalendar() {
             const container = document.getElementById('calendarList');
             container.innerHTML = '';
             
-            // 生成最近5天的日期
-            for (let i = 4; i >= 0; i--) {
+            for (let i = 5; i >= 0; i--) {
                 const date = new Date();
                 date.setDate(date.getDate() - i);
                 const dateStr = getDateStr(date);
@@ -391,39 +419,60 @@
                 const dayName = dayNames[date.getDay()];
                 const displayDate = date.getDate();
                 const month = date.getMonth() + 1;
-                const isToday = dateStr === TODAY_STR;
                 
-                dateItem.innerHTML = `
-                    <div>${month}/${displayDate} 周${dayName}</div>
-                    <div style="font-size:0.75em; opacity:0.7;">
-                        ${getTaskCountForDate(dateStr)} 个任务
-                        ${isToday ? '<span class="today-badge">今</span>' : ''}
-                    </div>
-                `;
-                
+                dateItem.innerHTML = `${month}/${displayDate} 周${dayName}`;
                 dateItem.addEventListener('click', () => switchViewingDate(dateStr));
                 container.appendChild(dateItem);
             }
         }
         
-        // 获取日期任务数量
-        function getTaskCountForDate(dateStr) {
-            const dateData = allDailyTasks[dateStr];
-            if (!dateData) return 0;
+        function renderHistory() {
+            const container = document.getElementById('historyList');
+            container.innerHTML = '';
             
-            const dynamicCount = dateData.dynamicTasks.length;
-            const fixedCount = fixedTasks.length;
-            return dynamicCount + fixedCount;
+            for (let i = 7; i >= 1; i--) {
+                const date = new Date();
+                date.setDate(date.getDate() - i);
+                const dateStr = getDateStr(date);
+                const dateData = allDailyTasks[dateStr];
+                
+                if (!dateData) continue;
+                
+                const totalTasks = fixedTasks.length + dateData.dynamicTasks.length;
+                const completedFixed = Object.values(dateData.fixedTaskStatus).filter(v => v).length;
+                const completedDynamic = dateData.dynamicTasks.filter(t => t.completed).length;
+                const completedTotal = completedFixed + completedDynamic;
+                const completionRate = totalTasks > 0 ? Math.round((completedTotal / totalTasks) * 100) : 0;
+                
+                const historyItem = document.createElement('div');
+                historyItem.className = 'history-item';
+                historyItem.innerHTML = `
+                    <div class="history-date">
+                        <span>${date.getMonth()+1}/${date.getDate()}</span>
+                        <span>${completionRate}%</span>
+                    </div>
+                    <div class="history-stats">
+                        <span>固定: ${completedFixed}/${fixedTasks.length}</span>
+                        <span>动态: ${completedDynamic}/${dateData.dynamicTasks.length}</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: ${completionRate}%"></div>
+                    </div>
+                `;
+                container.appendChild(historyItem);
+            }
+            
+            if (container.innerHTML === '') {
+                container.innerHTML = '<div style="text-align:center; color:#94a3b8; padding:20px;">暂无历史记录</div>';
+            }
         }
         
-        // 2. 切换查看日期
         function switchViewingDate(dateStr) {
             currentViewingDate = dateStr;
             ensureDateData(dateStr);
             renderCalendar();
             renderAllTasksForDate(dateStr);
             
-            // 更新标题
             const title = document.getElementById('todayDateTitle');
             const date = new Date(dateStr);
             const dayDiff = Math.round((date - TODAY) / (1000*60*60*24));
@@ -437,7 +486,6 @@
             title.textContent = `📝 ${dayText}的动态任务`;
         }
         
-        // 3. 渲染指定日期的所有任务
         function renderAllTasksForDate(dateStr) {
             const dateData = allDailyTasks[dateStr];
             if (!dateData) return;
@@ -474,7 +522,6 @@
             });
         }
         
-        // 4. 创建任务元素
         function createTaskElement(text, completed, type, id, dateStr) {
             const taskDiv = document.createElement('div');
             taskDiv.className = 'task-item';
@@ -511,8 +558,9 @@
             
             if (type === 'fixed') {
                 const fixedIndicator = document.createElement('span');
-                fixedIndicator.className = 'fixed-indicator';
-                fixedIndicator.textContent = '固定';
+                fixedIndicator.textContent = ' (固定)';
+                fixedIndicator.style.color = '#8b5cf6';
+                fixedIndicator.style.fontSize = '0.8em';
                 taskDiv.appendChild(fixedIndicator);
             } else {
                 taskDiv.appendChild(deleteBtn);
@@ -557,21 +605,38 @@
         // ================ 事件处理 ================
         // 1. 折叠/展开侧边栏
         document.getElementById('toggleSidebarBtn').addEventListener('click', function() {
-            const sidebar = document.getElementById('calendarSidebar');
+            const sidebar = document.getElementById('sidebar');
             isSidebarCollapsed = !isSidebarCollapsed;
             
             if (isSidebarCollapsed) {
                 sidebar.classList.add('collapsed');
                 this.textContent = '▶';
-                this.title = '展开日历';
+                this.title = '展开侧边栏';
             } else {
                 sidebar.classList.remove('collapsed');
                 this.textContent = '◀';
-                this.title = '折叠日历';
+                this.title = '折叠侧边栏';
             }
         });
         
-        // 2. 添加动态任务
+        // 2. 切换标签页
+        document.getElementById('calendarTab').addEventListener('click', function() {
+            document.getElementById('calendarTab').classList.add('active');
+            document.getElementById('historyTab').classList.remove('active');
+            document.getElementById('calendarPanel').style.display = 'block';
+            document.getElementById('historyPanel').style.display = 'none';
+            renderCalendar();
+        });
+        
+        document.getElementById('historyTab').addEventListener('click', function() {
+            document.getElementById('historyTab').classList.add('active');
+            document.getElementById('calendarTab').classList.remove('active');
+            document.getElementById('historyPanel').style.display = 'block';
+            document.getElementById('calendarPanel').style.display = 'none';
+            renderHistory();
+        });
+        
+        // 3. 添加动态任务
         document.getElementById('addDynamicTaskBtn').addEventListener('click', () => {
             const dateData = allDailyTasks[currentViewingDate];
             const taskText = prompt('请输入新任务内容：', '新任务');
@@ -586,7 +651,7 @@
             }
         });
         
-        // 3. 复制昨天任务
+        // 4. 复制昨天任务
         document.getElementById('copyYesterdayBtn').addEventListener('click', () => {
             const yesterday = new Date(TODAY);
             yesterday.setDate(yesterday.getDate() - 1);
@@ -618,7 +683,7 @@
             alert(`已添加 ${unfinishedDynamic.length} 项来自昨天的未完成任务。`);
         });
         
-        // 4. 管理固定任务
+        // 5. 管理固定任务
         document.getElementById('manageFixedTasksBtn').addEventListener('click', () => {
             const currentTasks = fixedTasks.map(ft => ft.text).join('\n');
             const input = prompt(
@@ -642,7 +707,6 @@
                     
                     saveFixedTasks();
                     
-                    // 更新所有日期的固定任务状态
                     Object.keys(allDailyTasks).forEach(dateStr => {
                         const newStatus = {};
                         fixedTasks.forEach(ft => {
@@ -658,54 +722,18 @@
             }
         });
         
-        // 5. 切换紧凑模式
-        document.getElementById('toggleCompactBtn').addEventListener('click', function() {
-            document.body.classList.toggle('compact-mode');
-            
-            if (document.body.classList.contains('compact-mode')) {
-                this.style.background = '#10b981';
-                this.textContent = '📱';
-                document.body.style.fontSize = '0.75em';
-                document.body.style.padding = '5px';
-            } else {
-                this.style.background = '#3b82f6';
-                this.textContent = '📱';
-                document.body.style.fontSize = '0.85em';
-                document.body.style.padding = '8px';
-            }
-        });
-        
-        // 6. 导出数据
-        document.getElementById('exportDataBtn').addEventListener('click', () => {
-            const data = {
-                fixedTasks: fixedTasks,
-                allDailyTasks: allDailyTasks,
-                exportDate: new Date().toISOString()
-            };
-            
-            const dataStr = JSON.stringify(data, null, 2);
-            const dataBlob = new Blob([dataStr], {type: 'application/json'});
-            
-            const url = URL.createObjectURL(dataBlob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `任务数据_${TODAY_STR}.json`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-            
-            alert('数据已导出为JSON文件！');
-        });
-        
         // ================ 初始化应用 ================
+        // 确保标签页初始状态正确
+        document.getElementById('calendarPanel').style.display = 'block';
+        document.getElementById('historyPanel').style.display = 'none';
+        
         renderCalendar();
         renderAllTasksForDate(TODAY_STR);
         
-        // 默认折叠侧边栏
+        // 默认折叠侧边栏（3秒后自动执行，以便您能看到按钮）
         setTimeout(() => {
             document.getElementById('toggleSidebarBtn').click();
-        }, 300);
+        }, 1000);
     </script>
 </body>
 </html>
