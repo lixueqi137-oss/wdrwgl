@@ -15,7 +15,6 @@
             font-size: 0.85em;
             min-height: 100vh;
         }
-        /* 主容器 */
         .app-container {
             display: flex;
             background: white;
@@ -25,7 +24,6 @@
             max-width: 900px;
             margin: 0 auto;
         }
-        /* 日历侧边栏 - 可折叠 */
         #calendarSidebar {
             width: 160px;
             background: #f1f3f4;
@@ -88,7 +86,6 @@
             color: white;
             font-weight: bold;
         }
-        /* 主任务区域 */
         #mainArea {
             flex-grow: 1;
             padding: 15px;
@@ -112,7 +109,6 @@
             justify-content: space-between;
             align-items: center;
         }
-        /* 控制按钮区域 */
         #controls {
             display: flex;
             flex-wrap: wrap;
@@ -140,7 +136,6 @@
         .action-btn.secondary:hover {
             background: #5a6268;
         }
-        /* 任务项样式 */
         .task-item {
             display: flex;
             align-items: center;
@@ -213,7 +208,6 @@
             flex-shrink: 0;
         }
         .task-item:hover .delete-btn { opacity: 1; }
-        /* 优先待办区域特殊样式 */
         .priority-section {
             border-left: 3px solid #ff4757;
             background-color: #fff9f9;
@@ -229,7 +223,6 @@
 </head>
 <body>
     <div class="app-container">
-        <!-- 日历侧边栏 -->
         <div id="calendarSidebar">
             <div class="calendar-header">
                 <h3>🗓️ 日历</h3>
@@ -238,7 +231,6 @@
             <div id="calendarList"></div>
         </div>
 
-        <!-- 主任务区域 -->
         <div id="mainArea">
             <div id="controls">
                 <button class="action-btn" id="addDynamicTaskBtn">+ 今日任务</button>
@@ -246,16 +238,7 @@
                 <button class="action-btn secondary" id="manageFixedTasksBtn">⚙️ 管理固定</button>
             </div>
 
-            <!-- 优先待办区域 -->
-            <div class="task-section priority-section">
-                <h3 class="section-title">
-                    <span style="color: #ff4757;">●</span> 优先待办
-                    <small style="color:#7f8c8d;">（高重要性）</small>
-                </h3>
-                <div id="priorityTasksContainer"></div>
-            </div>
-
-            <!-- 固定任务区域 -->
+            <!-- 顺序已调整：固定任务 -> 优先待办 -> 动态任务 -->
             <div class="task-section">
                 <h3 class="section-title">
                     🔄 每日固定任务
@@ -264,7 +247,14 @@
                 <div id="fixedTasksContainer"></div>
             </div>
 
-            <!-- 今日动态任务区域 -->
+            <div class="task-section priority-section">
+                <h3 class="section-title">
+                    <span style="color: #ff4757;">●</span> 优先待办
+                    <small style="color:#7f8c8d;">（高重要性）</small>
+                </h3>
+                <div id="priorityTasksContainer"></div>
+            </div>
+
             <div class="task-section">
                 <h3 class="section-title" id="todayDateTitle">📝 今日动态任务</h3>
                 <div id="dynamicTasksContainer"></div>
@@ -273,33 +263,23 @@
     </div>
 
     <script>
-        // ================ 核心工具函数 ================
         function getDateStr(dateObj) {
             return dateObj.toISOString().split('T')[0];
         }
-
-        // ================ 状态与日期管理 ================
         const TODAY = new Date();
         const TODAY_STR = getDateStr(TODAY);
         let currentViewingDate = TODAY_STR;
-
-        // ================ 数据模型 ================
         let fixedTasks = JSON.parse(localStorage.getItem('fixedTasks')) || [
             { id: 1, text: "阅读30分钟", completed: false, priority: false },
             { id: 2, text: "运动锻炼", completed: false, priority: true }
         ];
-
         let allDailyTasks = JSON.parse(localStorage.getItem('allDailyTasks')) || {};
-
-        // ================ 数据持久化函数 ================
         function saveFixedTasks() {
             localStorage.setItem('fixedTasks', JSON.stringify(fixedTasks));
         }
         function saveAllDailyTasks() {
             localStorage.setItem('allDailyTasks', JSON.stringify(allDailyTasks));
         }
-
-        // ================ 初始化：确保今天的数据存在 ================
         function ensureDateData(dateStr) {
             if (!allDailyTasks[dateStr]) {
                 allDailyTasks[dateStr] = {
@@ -313,9 +293,6 @@
             }
         }
         ensureDateData(TODAY_STR);
-
-        // ================ 渲染函数 ================
-        // 1. 渲染日历侧边栏
         function renderCalendar() {
             const container = document.getElementById('calendarList');
             container.innerHTML = '';
@@ -334,80 +311,24 @@
                 container.appendChild(dateItem);
             }
         }
-
-        // 2. 切换查看的日期
         function switchViewingDate(dateStr) {
             currentViewingDate = dateStr;
             ensureDateData(dateStr);
             renderCalendar();
             renderAllTasks();
         }
-
-        // 3. 渲染所有任务（优先、固定、动态）
         function renderAllTasks() {
             const dateData = allDailyTasks[currentViewingDate];
             if (!dateData) return;
-
-            // 渲染优先任务
-            renderPriorityTasks(dateData);
-            // 渲染固定任务
             renderFixedTasks(dateData);
-            // 渲染动态任务
+            renderPriorityTasks(dateData);
             renderDynamicTasks(dateData);
-            // 更新标题
             updateDateTitle();
         }
-
-        // 3.1 渲染优先任务
-        function renderPriorityTasks(dateData) {
-            const container = document.getElementById('priorityTasksContainer');
-            container.innerHTML = '';
-
-            let priorityTasks = [];
-
-            // 收集固定优先任务
-            fixedTasks.forEach(ft => {
-                if (ft.priority && dateData.fixedTaskStatus[ft.id] !== undefined) {
-                    priorityTasks.push({
-                        type: 'fixed',
-                        id: ft.id,
-                        text: ft.text,
-                        completed: dateData.fixedTaskStatus[ft.id],
-                        priority: true
-                    });
-                }
-            });
-
-            // 收集动态优先任务
-            dateData.dynamicTasks.forEach((task, index) => {
-                if (task.priority) {
-                    priorityTasks.push({
-                        type: 'dynamic',
-                        id: index,
-                        text: task.text,
-                        completed: task.completed,
-                        priority: true
-                    });
-                }
-            });
-
-            if (priorityTasks.length === 0) {
-                container.innerHTML = '<p class="empty-placeholder">暂无优先任务</p>';
-                return;
-            }
-
-            priorityTasks.forEach(task => {
-                container.appendChild(createTaskElement(task, currentViewingDate));
-            });
-        }
-
-        // 3.2 渲染固定任务
         function renderFixedTasks(dateData) {
             const container = document.getElementById('fixedTasksContainer');
             container.innerHTML = '';
-
             fixedTasks.forEach(ft => {
-                // 非优先的固定任务才在这里显示（优先的已在优先区显示）
                 if (!ft.priority) {
                     const task = {
                         type: 'fixed',
@@ -419,19 +340,48 @@
                     container.appendChild(createTaskElement(task, currentViewingDate));
                 }
             });
-
             if (container.innerHTML === '') {
                 container.innerHTML = '<p class="empty-placeholder">所有固定任务均已设为优先</p>';
             }
         }
-
-        // 3.3 渲染动态任务
+        function renderPriorityTasks(dateData) {
+            const container = document.getElementById('priorityTasksContainer');
+            container.innerHTML = '';
+            let priorityTasks = [];
+            fixedTasks.forEach(ft => {
+                if (ft.priority && dateData.fixedTaskStatus[ft.id] !== undefined) {
+                    priorityTasks.push({
+                        type: 'fixed',
+                        id: ft.id,
+                        text: ft.text,
+                        completed: dateData.fixedTaskStatus[ft.id],
+                        priority: true
+                    });
+                }
+            });
+            dateData.dynamicTasks.forEach((task, index) => {
+                if (task.priority) {
+                    priorityTasks.push({
+                        type: 'dynamic',
+                        id: index,
+                        text: task.text,
+                        completed: task.completed,
+                        priority: true
+                    });
+                }
+            });
+            if (priorityTasks.length === 0) {
+                container.innerHTML = '<p class="empty-placeholder">暂无优先任务</p>';
+                return;
+            }
+            priorityTasks.forEach(task => {
+                container.appendChild(createTaskElement(task, currentViewingDate));
+            });
+        }
         function renderDynamicTasks(dateData) {
             const container = document.getElementById('dynamicTasksContainer');
             container.innerHTML = '';
-
             dateData.dynamicTasks.forEach((task, index) => {
-                // 非优先的动态任务才在这里显示
                 if (!task.priority) {
                     const taskObj = {
                         type: 'dynamic',
@@ -443,36 +393,27 @@
                     container.appendChild(createTaskElement(taskObj, currentViewingDate));
                 }
             });
-
             if (container.innerHTML === '' && dateData.dynamicTasks.length > 0) {
                 container.innerHTML = '<p class="empty-placeholder">所有动态任务均已设为优先</p>';
             } else if (dateData.dynamicTasks.length === 0) {
                 container.innerHTML = '<p class="empty-placeholder">暂无动态任务</p>';
             }
         }
-
-        // 4. 更新日期标题
         function updateDateTitle() {
             const title = document.getElementById('todayDateTitle');
             const currentDate = new Date(currentViewingDate);
             const today = new Date(TODAY_STR);
             const diff = Math.round((currentDate - today) / (1000 * 60 * 60 * 24));
-            
             let prefix = "📝 ";
             if (diff === 0) prefix = "📝 今天";
             else if (diff === -1) prefix = "📝 昨天";
             else if (diff === 1) prefix = "📝 明天";
             else prefix = `📝 ${currentViewingDate.substring(5).replace('-', '/')}`;
-            
             title.textContent = prefix + " 动态任务";
         }
-
-        // 5. 创建单个任务元素
         function createTaskElement(task, dateStr) {
             const taskDiv = document.createElement('div');
             taskDiv.className = 'task-item';
-
-            // 复选框
             const checkbox = document.createElement('input');
             checkbox.type = 'checkbox';
             checkbox.className = 'task-checkbox';
@@ -480,20 +421,14 @@
             checkbox.addEventListener('change', () => {
                 updateTaskCompletion(task.type, task.id, dateStr, checkbox.checked);
             });
-
-            // 文本容器（包含红色圆点）
             const textContainer = document.createElement('div');
             textContainer.className = 'task-text-container';
-
-            // 红色圆点（仅优先任务显示）
             if (task.priority) {
                 const redDot = document.createElement('span');
                 redDot.className = 'priority-dot';
                 redDot.textContent = '●';
                 textContainer.appendChild(redDot);
             }
-
-            // 文本输入框
             const textInput = document.createElement('input');
             textInput.type = 'text';
             textInput.className = 'task-text';
@@ -505,8 +440,6 @@
                 updateTaskText(task.type, task.id, dateStr, textInput.value);
             });
             textContainer.appendChild(textInput);
-
-            // 优先级按钮
             const priorityBtn = document.createElement('button');
             priorityBtn.className = `priority-btn ${task.priority ? 'active' : ''}`;
             priorityBtn.innerHTML = task.priority ? '★' : '☆';
@@ -515,27 +448,20 @@
                 e.stopPropagation();
                 toggleTaskPriority(task.type, task.id, dateStr);
             });
-
-            // 删除按钮（仅动态任务）
             const deleteBtn = document.createElement('button');
             deleteBtn.className = 'delete-btn';
             deleteBtn.textContent = '删除';
             deleteBtn.addEventListener('click', () => {
                 deleteTask(task.type, task.id, dateStr);
             });
-
-            // 组装
             taskDiv.appendChild(checkbox);
             taskDiv.appendChild(textContainer);
             taskDiv.appendChild(priorityBtn);
             if (task.type === 'dynamic') {
                 taskDiv.appendChild(deleteBtn);
             }
-
             return taskDiv;
         }
-
-        // ================ 数据更新函数 ================
         function updateTaskCompletion(type, id, dateStr, completed) {
             const dateData = allDailyTasks[dateStr];
             if (type === 'fixed') {
@@ -544,9 +470,8 @@
                 dateData.dynamicTasks[id].completed = completed;
             }
             saveAllDailyTasks();
-            renderAllTasks(); // 重新渲染以更新所有区域
+            renderAllTasks();
         }
-
         function updateTaskText(type, id, dateStr, newText) {
             if (type === 'fixed') {
                 const task = fixedTasks.find(t => t.id === id);
@@ -560,7 +485,6 @@
             }
             renderAllTasks();
         }
-
         function toggleTaskPriority(type, id, dateStr) {
             if (type === 'fixed') {
                 const task = fixedTasks.find(t => t.id === id);
@@ -577,7 +501,6 @@
             }
             renderAllTasks();
         }
-
         function deleteTask(type, id, dateStr) {
             if (type === 'dynamic') {
                 allDailyTasks[dateStr].dynamicTasks.splice(id, 1);
@@ -585,8 +508,6 @@
                 renderAllTasks();
             }
         }
-
-        // ================ 按钮事件绑定 ================
         document.getElementById('addDynamicTaskBtn').addEventListener('click', () => {
             const dateData = allDailyTasks[currentViewingDate];
             dateData.dynamicTasks.push({
@@ -597,23 +518,18 @@
             saveAllDailyTasks();
             renderAllTasks();
         });
-
-        // 修复的复制功能
         document.getElementById('copyYesterdayBtn').addEventListener('click', () => {
             const currentDate = new Date(currentViewingDate);
             const yesterday = new Date(currentDate);
             yesterday.setDate(yesterday.getDate() - 1);
             const yesterdayStr = getDateStr(yesterday);
-
             const yesterdayData = allDailyTasks[yesterdayStr];
             if (!yesterdayData || yesterdayData.dynamicTasks.length === 0) {
                 alert('昨天没有动态任务可复制。');
                 return;
             }
-
             const todayData = allDailyTasks[currentViewingDate];
             const unfinishedDynamic = yesterdayData.dynamicTasks.filter(t => !t.completed);
-            
             unfinishedDynamic.forEach(task => {
                 todayData.dynamicTasks.push({
                     text: task.text,
@@ -621,12 +537,10 @@
                     priority: task.priority
                 });
             });
-
             saveAllDailyTasks();
             renderAllTasks();
             alert(`已复制 ${unfinishedDynamic.length} 项未完成的任务。`);
         });
-
         document.getElementById('manageFixedTasksBtn').addEventListener('click', () => {
             const input = prompt(
                 '管理固定任务（每行一个任务）：\n当前任务：\n' +
@@ -655,16 +569,12 @@
                 alert('固定任务已更新！');
             }
         });
-
-        // 日历侧边栏折叠功能
         document.getElementById('sidebarToggle').addEventListener('click', () => {
             const sidebar = document.getElementById('calendarSidebar');
             const toggleBtn = document.getElementById('sidebarToggle');
             sidebar.classList.toggle('collapsed');
             toggleBtn.innerHTML = sidebar.classList.contains('collapsed') ? '▶' : '◀';
         });
-
-        // ================ 初始化渲染 ================
         renderCalendar();
         renderAllTasks();
     </script>
